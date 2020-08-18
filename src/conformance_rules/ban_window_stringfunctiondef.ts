@@ -28,7 +28,7 @@ import {ErrorCode} from '../third_party/tsetse/error_code';
 import {AbstractRule} from '../third_party/tsetse/rule';
 import {AbsoluteMatcher} from '../third_party/tsetse/util/absolute_matcher';
 import {Allowlist, AllowlistEntry} from '../third_party/tsetse/util/allowlist';
-import {shouldExamineNode} from '../third_party/tsetse/util/ast_tools';
+import {shouldExamineNode, debugLog} from '../third_party/tsetse/util/ast_tools';
 import {PropertyMatcher} from '../third_party/tsetse/util/property_matcher';
 
 import * as path from 'path';
@@ -76,6 +76,8 @@ type NodeMatcher<T extends ts.Node> = T extends ts.Identifier ?
     AbsoluteMatcher :
     T extends ts.PropertyAccessExpression ?
     PropertyMatcher :
+    T extends ts.ElementAccessExpression ?
+    {matches: (n: ts.Node, tc: ts.TypeChecker) => boolean} :
     {matches: (n: ts.Node, tc: ts.TypeChecker) => never};
 
 function checkNode<T extends ts.Node>(
@@ -84,6 +86,22 @@ function checkNode<T extends ts.Node>(
   if (!matcher.matches(n, tc)) return;
   if (isCalledWithNonStrArg(n, tc)) return;
   return n;
+}
+
+const toJson = (obj: any) => {
+  let cache: any = [];
+  const ret = JSON.stringify(obj, (key, value) => {
+    if (typeof value === 'object' && value !== null) {
+      // Duplicate reference found, discard key
+      if (cache.includes(value)) return;
+
+      // Store value in our collection
+      cache.push(value);
+    }
+    return value;
+  });
+  cache = null; // Enable garbage collection
+  return ret
 }
 
 /**
@@ -138,6 +156,7 @@ export class Rule extends AbstractRule {
       checker.onNamedPropertyAccess(
           propMatcher.bannedProperty,
           (c, n) => {
+            // debugLog(() => toJson({n: n.getFullText(), par: n.parent.parent.getFullText(), np: n.parent.getText(), npp: n.getSourceFile().getLineAndCharacterOfPosition(n.pos) ,propAcc: ts.isPropertyAccessExpression(n.parent)}))
             const node = checkNode(c.typeChecker, n, propMatcher);
             if (node) {
               if (this.allowlist?.isAllowlisted(
@@ -152,6 +171,20 @@ export class Rule extends AbstractRule {
           },
           this.code,
       );
+
+      checker.onStringLiteralElementAccess(
+        propMatcher.bannedProperty,
+        (c, n) => {
+          debugLog(() => toJson({n: n.getFullText(), par: n.parent.parent.getFullText(), np: n.parent.getText(), npp: n.getSourceFile().getLineAndCharacterOfPosition(n.pos) ,propAcc: ts.isPropertyAccessExpression(n.parent)}))
+          const node = checkNode(c.typeChecker, n, {matches: (n, tc) => true});
+          if (node) {
+            checker.addFailureAtNode(
+              node,
+              errMsg(`${propMatcher.bannedType}#${
+                  propMatcher.bannedProperty}`));
+          }
+        },
+        this.code);
     }
   }
 }
