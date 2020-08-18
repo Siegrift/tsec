@@ -17,6 +17,17 @@ function checkId(
   return n;
 }
 
+function checkExpressionAccess(
+  tc: ts.TypeChecker, n: ts.ElementAccessExpression,
+  matcher: AbsoluteMatcher): ts.ElementAccessExpression|undefined {
+debugLog(() => `inspecting element access ${n.argumentExpression.getText().trim()}`);
+if (!matcher.matches(n.argumentExpression, tc)) {
+  debugLog(() => 'Not the right global name.');
+  return;
+}
+return n;
+}
+
 /** Engine for the BANNED_NAME pattern */
 export class NameEngine extends PatternEngine {
   register(checker: Checker) {
@@ -30,7 +41,13 @@ export class NameEngine extends PatternEngine {
       checker.onNamedIdentifier(
           bannedIdName,
           this.wrapCheckWithAllowlistingAndFixer(
-              (tc, n: ts.Identifier) => checkId(tc, n, matcher)),
+              (tc, n) => checkId(tc, n, matcher)),
+          this.config.errorCode);
+
+        checker.onStringLiteralElementAccess(
+          bannedIdName,
+          this.wrapCheckWithAllowlistingAndFixer(
+              (tc, n) => checkExpressionAccess(tc, n, matcher)),
           this.config.errorCode);
     }
   }

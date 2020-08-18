@@ -123,11 +123,14 @@ export class AbsoluteMatcher {
 
     // Get the symbol (or the one at the other end of this alias) that we're
     // looking at.
+    debugLog(() => `SYMBOL ${tc.getSymbolAtLocation(n)} "${n.getFullText()}" ${n.getText()}`)
     const s = dealias(tc.getSymbolAtLocation(n), tc);
     if (!s) {
       debugLog(() => `cannot get symbol`);
       return false;
     }
+
+    debugLog(() => `WE HAVE SYMBOL ${s?.escapedName}`)
 
     // The TS-provided FQN tells us the full identifier, and the origin file
     // in some circumstances.

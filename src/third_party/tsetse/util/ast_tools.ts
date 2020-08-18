@@ -8,7 +8,7 @@ import * as ts from 'typescript';
 /**
  * Triggers increased verbosity in the rules.
  */
-let DEBUG = false;
+let DEBUG = true;
 
 /**
  * Turns on or off logging for ConformancePatternRules.
