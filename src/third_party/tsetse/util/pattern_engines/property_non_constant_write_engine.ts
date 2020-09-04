@@ -13,7 +13,7 @@ function matchPropertyNonConstantWrite(
     tc: ts.TypeChecker,
     n: ts.PropertyAccessExpression|ts.ElementAccessExpression,
     matcher: PropertyMatcher): ts.Node|undefined {
-  debugLog(() => `inspecting ${n.getFullText().trim()}`);
+  debugLog(() => `ddd inspecting ${n.getFullText().trim()}`);
   if (matchPropertyWrite(tc, n, matcher) === undefined) {
     return;
   }

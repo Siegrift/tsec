@@ -13,7 +13,7 @@ export function matchProperty(
     tc: ts.TypeChecker,
     n: ts.PropertyAccessExpression|ts.ElementAccessExpression,
     matcher: PropertyMatcher): ts.Node|undefined {
-  debugLog(() => `inspecting ${n.getText().trim()}`);
+  debugLog(() => `ccc inspecting ${n.getText().trim()}`);
   if (!matcher.typeMatches(tc.getTypeAtLocation(n.expression))) return;
   return n;
 }

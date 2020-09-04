@@ -32,6 +32,7 @@ export class Rule extends ConformancePatternRule {
           values: ['Element.prototype.innerHTML'],
           allowlistEntries,
           name: Rule.RULE_NAME,
+          allowedTypes: ['TrustedHTML']
         },
     );
   }

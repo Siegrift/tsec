@@ -9,7 +9,7 @@ import {PatternEngine} from './pattern_engine';
 function checkId(
     tc: ts.TypeChecker, n: ts.Identifier,
     matcher: AbsoluteMatcher): ts.Identifier|undefined {
-  debugLog(() => `inspecting ${n.getText().trim()}`);
+  debugLog(() => `aaa inspecting ${n.getText().trim()}`);
   if (!matcher.matches(n, tc)) {
     debugLog(() => 'Not the right global name.');
     return;
@@ -20,7 +20,7 @@ function checkId(
 function checkExpressionAccess(
   tc: ts.TypeChecker, n: ts.ElementAccessExpression,
   matcher: AbsoluteMatcher): ts.ElementAccessExpression|undefined {
-debugLog(() => `inspecting element access ${n.argumentExpression.getText().trim()}`);
+debugLog(() => `bbb inspecting element access ${n.argumentExpression.getText().trim()}`);
 if (!matcher.matches(n.argumentExpression, tc)) {
   debugLog(() => 'Not the right global name.');
   return;

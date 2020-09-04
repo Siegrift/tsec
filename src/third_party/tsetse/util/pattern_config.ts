@@ -42,6 +42,8 @@ export interface PatternEngineConfig {
 
   /** A list of allowlist blocks. */
   allowlistEntries?: AllowlistEntry[];
+
+  allowedTypes?: string[]
 }
 
 /**
