@@ -14,6 +14,7 @@
 
 import {ConformancePatternRule, ErrorCode, PatternKind} from '../third_party/tsetse/rules/conformance_pattern_rule';
 import {AllowlistEntry} from '../third_party/tsetse/util/allowlist';
+import { buildReplacementFixer } from '../third_party/tsetse/util/fixer';
 
 let errMsg =
     'Assigning directly to Element#innerHTML can result in XSS vulnerabilities.';
@@ -34,6 +35,7 @@ export class Rule extends ConformancePatternRule {
           name: Rule.RULE_NAME,
           allowedTypes: ['TrustedHTML']
         },
+        buildReplacementFixer((node) => ({replaceWith: 'THIS_REPLACEMENT' + node.getText()}))
     );
   }
 }
