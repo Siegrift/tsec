@@ -1,72 +1,110 @@
-import * as ts from 'typescript/lib/tsserverlibrary'
+import * as ts_module from "typescript/lib/tsserverlibrary";
 import {Checker} from './third_party/tsetse/checker';
 import { ENABLED_RULES } from './rule_groups';
+import { DiagnosticWithFix } from './third_party/tsetse/failure';
 
-/**
- * The proxy design pattern, allowing us to customize behavior of the delegate
- * object.
- * This creates a property-by-property copy of the object, so it can be mutated
- * without affecting other users of the original object.
- * See https://en.wikipedia.org/wiki/Proxy_pattern
- */
-function createProxy<T>(delegate: T): T {
-  const proxy = Object.create(null);
-  for (const k of Object.keys(delegate)) {
-    proxy[k] = function() {
-      return (delegate as any)[k].apply(delegate, arguments);
-    };
-  }
-  return proxy;
-}
+const TSETSE_ERROR_CODE = 21228;
 
+function init(modules: { typescript: typeof ts_module }) {
+    const ts = modules.typescript;
 
-// Installs the Tsec language server plugin, which checks Tsec rules in your
-// editor and shows issues as semantic errors (red squiggly underline).
-function init() {
-  return {
-    create(info: ts.server.PluginCreateInfo) {
-      const oldService = info.languageService
-      const proxy = createProxy(oldService)
+    let registeredCodeFixes = false;
 
-      // Note that this ignores suggested fixes. Fixes can be implemented in a separate proxy
-      // method. See:
-      // https://github.com/angelozerr/tslint-language-service/blob/880486c5f1db7961fb7170a621e25893332b2430/src/index.ts#L415
-      proxy.getSemanticDiagnostics = (fileName: string) => {
-        const result = [...oldService.getSemanticDiagnostics(fileName)]
-
-        const program = oldService.getProgram()
-
-        // Signature of `getProgram` is `getProgram(): Program | undefined;` in
-        // ts 3.1 so we must check if the return value is valid to compile with
-        // ts 3.1.
-        if (!program) {
-          throw new Error(
-            'Failed to initialize tsetse language_service_plugin: program is undefined',
-          )
-        }
-
-        const checker = new Checker(program)
-
-        // Register all of the rules for now.
-        // TODO: maybe make this configurable. See:
-        // https://github.com/bazelbuild/rules_typescript/blob/master/internal/tsetse/language_service_plugin.ts#L29
-        for (const Rule of ENABLED_RULES) {
-          new Rule().register(checker);
-        }
-
-        result.push(
-          ...checker
-            .execute(program.getSourceFile(fileName)!)
-            .map((failure) => {
-              return failure.toDiagnosticWithStringifiedFix()
-            }),
-        )
-        return result
-      }
-
-      return proxy
+    // Work around the lack of API to register a CodeFix
+    function registerCodeFix(action: codefix.CodeFix) {
+        return (ts as any).codefix.registerCodeFix(action);
     }
-  }
+
+    if (!registeredCodeFixes && ts && (ts as any).codefix) {
+        registerCodeFixes(registerCodeFix);
+        registeredCodeFixes = true;
+    }
+
+    function registerCodeFixes(registerCodeFix: (action: codefix.CodeFix) => void) {
+        // Code fix for that is used for all tslint fixes
+        registerCodeFix({
+            errorCodes: [TSETSE_ERROR_CODE],
+            getCodeActions: (_context: any) => {
+                return undefined;
+            }
+        });
+    }
+
+    function create(info: ts.server.PluginCreateInfo) {
+        info.project.projectService.logger.info("tslint-language-service loaded");
+
+        // Set up decorator
+        const proxy = Object.create(null) as ts.LanguageService;
+        const oldLS = info.languageService;
+        for (const k in oldLS) {
+            (<any>proxy)[k] = function () {
+                return (<any>oldLS)[k].apply(oldLS, arguments);
+            }
+        }
+
+        const tsecFixToCodeFix = (fileName: string, d: DiagnosticWithFix): ts.CodeAction => {
+          return {
+            description: `Tsec fix`,
+            changes: [{
+              fileName: fileName,
+              textChanges: [{span: {length: d.length!, start: d.start!}, newText: 'tsec replacement'}],
+            }]
+          };
+        }
+
+        proxy.getSemanticDiagnostics = (fileName: string) => {
+            const prior = oldLS.getSemanticDiagnostics(fileName);
+
+            const checker = new Checker(oldLS.getProgram()!)
+
+            for (const Rule of ENABLED_RULES) {
+              new Rule().register(checker);
+            }
+    
+            prior.push(
+              ...checker
+                .execute(oldLS.getProgram()!.getSourceFile(fileName)!)
+                .map((failure) => {
+                  return failure.toDiagnosticWithStringifiedFix()
+                }),
+            )
+            return prior
+        };
+
+        proxy.getCodeFixesAtPosition = function (fileName: string, start: number, end: number, errorCodes: number[], formatOptions: ts.FormatCodeSettings, userPreferences: ts.UserPreferences): ReadonlyArray<ts.CodeFixAction> {
+            let prior = oldLS.getCodeFixesAtPosition(fileName, start, end, errorCodes, formatOptions, userPreferences);
+            const fixes = [...prior]
+
+            const checker = new Checker(oldLS.getProgram()!)
+
+            for (const Rule of ENABLED_RULES) {
+              new Rule().register(checker);
+            }
+            
+            checker
+              .execute(oldLS.getProgram()!.getSourceFile(fileName)!)
+              .forEach((failure) => {
+                const d = failure.toDiagnostic();
+                console.log('aaaaa', fileName, start, end)
+                if (d.fix) fixes.push(tsecFixToCodeFix(fileName, d) as ts.CodeFixAction);
+              })
+
+            return fixes
+        };
+        return proxy;
+    }
+
+    return { create };
 }
 
 export = init;
+
+/* @internal */
+// work around for missing API to register a code fix
+namespace codefix {
+
+    export interface CodeFix {
+        errorCodes: number[];
+        getCodeActions(context: any): ts.CodeAction[] | undefined;
+    }
+}
