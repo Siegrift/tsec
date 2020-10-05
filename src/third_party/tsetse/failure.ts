@@ -165,3 +165,5 @@ export function fixToString(f?: Fix) {
   })) +
       '}'
 }
+
+document.body.innerHTML = 'str'

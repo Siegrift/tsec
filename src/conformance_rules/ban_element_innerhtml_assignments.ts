@@ -14,6 +14,7 @@
 
 import {ConformancePatternRule, ErrorCode, PatternKind} from '../third_party/tsetse/rules/conformance_pattern_rule';
 import {AllowlistEntry} from '../third_party/tsetse/util/allowlist';
+import {Fixer} from '../third_party/tsetse/util/fixer';
 import { buildReplacementFixer } from '../third_party/tsetse/util/fixer';
 
 let errMsg =
@@ -24,7 +25,7 @@ let errMsg =
  */
 export class Rule extends ConformancePatternRule {
   static readonly RULE_NAME = 'ban-element-innerhtml-assignments';
-  constructor(allowlistEntries?: AllowlistEntry[]) {
+  constructor(allowlistEntries?: AllowlistEntry[], fixers?: Fixer[]) {
     super(
         {
           errorCode: ErrorCode.CONFORMANCE_PATTERN,
@@ -35,7 +36,7 @@ export class Rule extends ConformancePatternRule {
           name: Rule.RULE_NAME,
           allowedTypes: ['TrustedHTML']
         },
-        buildReplacementFixer((node) => ({replaceWith: 'THIS_REPLACEMENT' + node.getText()}))
+        fixers?.[0], // NOTE: for now we support just a single fixer
     );
   }
 }

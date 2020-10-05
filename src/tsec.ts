@@ -21,6 +21,7 @@ import * as ts from 'typescript';
 import {ENABLED_RULES} from './rule_groups';
 import {ExemptionList, parseConformanceExemptionConfig} from './tsec_lib/exemption_config';
 import {ExtendedParsedCommandLine, parseTsConfigFile} from './tsec_lib/tsconfig';
+import { join } from 'path';
 
 const FORMAT_DIAGNOSTIC_HOST: ts.FormatDiagnosticsHost = {
   getCurrentDirectory: ts.sys.getCurrentDirectory,
@@ -126,6 +127,9 @@ function main(args: string[]) {
 
   diagnostics.push(...ts.getPreEmitDiagnostics(program));
 
+  const bootstrap = require(join(process.cwd(), './tsec-bootstrap'));
+  const fixers = bootstrap.fixers;
+
   // Create all enabled rules with corresponding exemption list entries.
   const conformanceChecker = new Checker(program);
   const conformanceRules = ENABLED_RULES.map(ruleCtr => {
@@ -135,7 +139,11 @@ function main(args: string[]) {
     if (allowlistEntry) {
       allowlistEntries.push(allowlistEntry);
     }
-    return new ruleCtr(allowlistEntries);
+    
+    const ruleFixers = fixers
+      .filter((f: any) => f.name === ruleCtr.RULE_NAME)
+      .map((f: any) => f.fixer);
+    return new ruleCtr(allowlistEntries, ruleFixers);
   });
 
   // Register all rules.

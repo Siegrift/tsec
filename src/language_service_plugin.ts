@@ -2,6 +2,7 @@ import * as ts_module from "typescript/lib/tsserverlibrary";
 import {Checker} from './third_party/tsetse/checker';
 import { ENABLED_RULES } from './rule_groups';
 import { DiagnosticWithFix, Failure } from './third_party/tsetse/failure';
+import { join } from "path";
 
 const TSETSE_ERROR_CODE = 21228;
 
@@ -55,6 +56,11 @@ function init(modules: { typescript: typeof ts_module }) {
 
     const codeFixActions = new Map<string, Map<string, ts.CodeFixAction[]>>();
 
+    // cwd() is .../next-tt-static-tooling-test/tsec so we need "../"
+    // the path should probably be configurable
+    const bootstrap = require(join(process.cwd(), './tsec-bootstrap'));
+    const fixers = bootstrap.fixers;
+
     function create(info: ts.server.PluginCreateInfo) {
         info.project.projectService.logger.info("tslint-language-service loaded");
 
@@ -72,7 +78,10 @@ function init(modules: { typescript: typeof ts_module }) {
             const checker = new Checker(oldLS.getProgram()!)
 
             for (const Rule of ENABLED_RULES) {
-              new Rule().register(checker);
+              const ruleFixers = fixers
+                .filter((f: any) => f.name === Rule.RULE_NAME)
+                .map((f: any) => f.fixer);
+              new Rule(undefined, ruleFixers).register(checker);
             }
 
             const failures = checker

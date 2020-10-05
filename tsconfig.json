@@ -4,18 +4,14 @@
     "module": "CommonJS",
     "target": "ES2015",
     "outDir": "lib",
-    "types": [
-      "node"
-    ],
-    "lib": [
-      "dom",
-      "es5",
-      "es2015.core",
-      "es2015.collection"
-    ],
+    "types": ["node"],
+    "lib": ["dom", "es5", "es2015.core", "es2015.collection"],
     "sourceMap": true,
+    "plugins": [
+      {
+        "name": "../../lib/language_service_plugin.js"
+      }
+    ]
   },
-  "exclude": [
-    "node_modules"
-  ],
+  "exclude": ["node_modules"]
 }
